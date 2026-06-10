@@ -4,6 +4,8 @@ import com.example.velocitylimits.dto.LoadRequest;
 import com.example.velocitylimits.dto.LoadResponse;
 import com.example.velocitylimits.service.VelocityService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -11,8 +13,6 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Reads fund load attempts from an input file, applies velocity limit checks via
@@ -40,10 +41,12 @@ public class LoadProcessor implements CommandLineRunner {
 
     private final VelocityService velocityService;
     private final ObjectMapper objectMapper;
+    private final Validator validator;
 
-    public LoadProcessor(VelocityService velocityService, ObjectMapper objectMapper) {
+    public LoadProcessor(VelocityService velocityService, ObjectMapper objectMapper, Validator validator) {
         this.velocityService = velocityService;
         this.objectMapper = objectMapper;
+        this.validator = validator;
     }
 
     @Override
@@ -60,11 +63,15 @@ public class LoadProcessor implements CommandLineRunner {
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
-                final int currentLine = lineNumber;
                 line = line.trim();
                 if (line.isEmpty()) continue;
                 try {
                     LoadRequest request = objectMapper.readValue(line, LoadRequest.class);
+                    Set<ConstraintViolation<LoadRequest>> violations = validator.validate(request);
+                    if (!violations.isEmpty()) {
+                        log.warn("Invalid request on line {}: {}", lineNumber, violations);
+                        continue;
+                    }
                     Optional<LoadResponse> response = velocityService.process(request);
                     if (response.isPresent()) {
                         writer.write(objectMapper.writeValueAsString(response.get()));
@@ -72,7 +79,7 @@ public class LoadProcessor implements CommandLineRunner {
                         count++;
                     }
                 } catch (Exception e) {
-                    log.error("Error processing line {}: {}", currentLine, line, e);
+                    log.error("Error processing line {}: {}", lineNumber, line, e);
                 }
             }
         } catch (FileNotFoundException e) {
@@ -88,10 +95,9 @@ public class LoadProcessor implements CommandLineRunner {
 
     private BufferedReader openReader(String path) throws IOException {
         // Try filesystem first, then classpath
-        File file = new File(path);
-        if (file.exists()) {
-            return new BufferedReader(new InputStreamReader(
-                    new FileInputStream(file), StandardCharsets.UTF_8));
+        Path filePath = Path.of(path);
+        if (Files.exists(filePath)) {
+            return Files.newBufferedReader(filePath, StandardCharsets.UTF_8);
         }
         InputStream is = getClass().getClassLoader().getResourceAsStream(path);
         if (is == null) throw new FileNotFoundException(path);

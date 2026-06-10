@@ -5,6 +5,7 @@ import com.example.velocitylimits.repository.LoadAttemptRepository;
 import com.example.velocitylimits.service.VelocityService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -34,6 +35,9 @@ class LoadProcessorIT {
     @Autowired
     private LoadAttemptRepository repository;
 
+    @Autowired
+    private Validator validator;
+
     @TempDir
     Path tempDir;
 
@@ -43,7 +47,7 @@ class LoadProcessorIT {
     }
 
     private LoadProcessor processor() {
-        return new LoadProcessor(velocityService, objectMapper);
+        return new LoadProcessor(velocityService, objectMapper, validator);
     }
 
     @Test

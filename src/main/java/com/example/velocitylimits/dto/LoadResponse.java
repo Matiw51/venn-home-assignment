@@ -17,7 +17,7 @@ public class LoadResponse {
 
     private boolean accepted;
 
-    public LoadResponse() {}
+    protected LoadResponse() {}
 
     public LoadResponse(String id, String customerId, boolean accepted) {
         this.id = id;
@@ -26,11 +26,6 @@ public class LoadResponse {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-
     public String getCustomerId() { return customerId; }
-    public void setCustomerId(String customerId) { this.customerId = customerId; }
-
     public boolean isAccepted() { return accepted; }
-    public void setAccepted(boolean accepted) { this.accepted = accepted; }
 }
