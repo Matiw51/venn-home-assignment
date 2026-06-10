@@ -77,11 +77,13 @@ public class LoadProcessor implements CommandLineRunner {
     }
 
     /**
-     * Deserializes, validates, and processes a single input line.
+     * Deserializes, validates, and processes a single input line, writing the result
+     * to the output if one should be produced.
      *
      * @return true if a response was written to the output, false otherwise
+     * @throws IOException if writing to the output fails
      */
-    private boolean processLine(String line, int lineNumber, BufferedWriter writer) {
+    private boolean processLine(String line, int lineNumber, BufferedWriter writer) throws IOException {
         try {
             var request = objectMapper.readValue(line, LoadRequest.class);
 
@@ -100,6 +102,8 @@ public class LoadProcessor implements CommandLineRunner {
                 writer.newLine();
                 return true;
             }
+        } catch (IOException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error processing line {}: {}", lineNumber, line, e);
         }

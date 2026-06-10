@@ -24,7 +24,7 @@ public class DollarAmountDeserializer extends StdDeserializer<BigDecimal> {
         try {
             return new BigDecimal(raw);
         } catch (NumberFormatException e) {
-            throw new JsonParseException(parser, "Invalid amount format: " + parser.getText());
+            throw new JsonParseException(parser, "Invalid amount format: " + parser.getText(), e);
         }
     }
 }
