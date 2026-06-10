@@ -1,7 +1,0 @@
-com/example/velocitylimits/processor/LoadProcessor.class
-com/example/velocitylimits/repository/LoadAttemptRepository.class
-com/example/velocitylimits/service/VelocityService.class
-com/example/velocitylimits/dto/LoadResponse.class
-com/example/velocitylimits/VelocityLimitsApplication.class
-com/example/velocitylimits/model/LoadAttempt.class
-com/example/velocitylimits/dto/LoadRequest.class
