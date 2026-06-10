@@ -1,0 +1,7 @@
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/VelocityLimitsApplication.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/dto/LoadRequest.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/dto/LoadResponse.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/model/LoadAttempt.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/processor/LoadProcessor.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/repository/LoadAttemptRepository.java
+/Users/mati/Projects/venn-home-assignment/src/main/java/com/example/velocitylimits/service/VelocityService.java
