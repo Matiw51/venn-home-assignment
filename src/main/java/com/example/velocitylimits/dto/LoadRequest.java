@@ -2,6 +2,8 @@ package com.example.velocitylimits.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -14,15 +16,19 @@ import java.time.Instant;
  */
 public class LoadRequest {
 
+    @NotBlank
     private String id;
 
+    @NotBlank
     @JsonProperty("customer_id")
     private String customerId;
 
+    @NotNull
     @JsonProperty("load_amount")
     @JsonDeserialize(using = DollarAmountDeserializer.class)
     private BigDecimal loadAmount;
 
+    @NotNull
     private Instant time;
 
     public String getId() { return id; }

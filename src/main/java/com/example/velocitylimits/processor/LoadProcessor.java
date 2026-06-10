@@ -10,16 +10,16 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 
 /**
@@ -55,18 +55,20 @@ public class LoadProcessor implements CommandLineRunner {
 
         int count = 0;
         try (BufferedReader reader = openReader(inputPath);
-             PrintWriter writer = openWriter(outputPath)) {
+             BufferedWriter writer = openWriter(outputPath)) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
-                final int currentLine = ++lineNumber;
+                lineNumber++;
+                final int currentLine = lineNumber;
                 line = line.trim();
                 if (line.isEmpty()) continue;
                 try {
                     LoadRequest request = objectMapper.readValue(line, LoadRequest.class);
                     Optional<LoadResponse> response = velocityService.process(request);
                     if (response.isPresent()) {
-                        writer.println(objectMapper.writeValueAsString(response.get()));
+                        writer.write(objectMapper.writeValueAsString(response.get()));
+                        writer.newLine();
                         count++;
                     }
                 } catch (Exception e) {
@@ -96,8 +98,7 @@ public class LoadProcessor implements CommandLineRunner {
         return new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
     }
 
-    private PrintWriter openWriter(String path) throws IOException {
-        return new PrintWriter(new OutputStreamWriter(
-                new FileOutputStream(path), StandardCharsets.UTF_8));
+    private BufferedWriter openWriter(String path) throws IOException {
+        return Files.newBufferedWriter(Path.of(path), StandardCharsets.UTF_8);
     }
 }

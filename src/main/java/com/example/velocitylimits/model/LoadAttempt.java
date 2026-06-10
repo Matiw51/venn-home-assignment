@@ -1,6 +1,13 @@
 package com.example.velocitylimits.model;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 
@@ -38,7 +45,7 @@ public class LoadAttempt {
     @Column(nullable = false)
     private boolean accepted;
 
-    public LoadAttempt() {}
+    protected LoadAttempt() {}
 
     public LoadAttempt(String loadId, String customerId, BigDecimal amount, Instant loadTime, boolean accepted) {
         this.loadId = loadId;
@@ -49,19 +56,9 @@ public class LoadAttempt {
     }
 
     public Long getId() { return id; }
-
     public String getLoadId() { return loadId; }
-    public void setLoadId(String loadId) { this.loadId = loadId; }
-
     public String getCustomerId() { return customerId; }
-    public void setCustomerId(String customerId) { this.customerId = customerId; }
-
     public BigDecimal getAmount() { return amount; }
-    public void setAmount(BigDecimal amount) { this.amount = amount; }
-
     public Instant getLoadTime() { return loadTime; }
-    public void setLoadTime(Instant loadTime) { this.loadTime = loadTime; }
-
     public boolean isAccepted() { return accepted; }
-    public void setAccepted(boolean accepted) { this.accepted = accepted; }
 }

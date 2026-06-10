@@ -19,12 +19,12 @@ public class DollarAmountDeserializer extends StdDeserializer<BigDecimal> {
     }
 
     @Override
-    public BigDecimal deserialize(JsonParser p, DeserializationContext context) throws IOException {
-        String raw = p.getText().replace("$", "").trim();
+    public BigDecimal deserialize(JsonParser parser, DeserializationContext context) throws IOException {
+        String raw = parser.getText().replace("$", "").trim();
         try {
             return new BigDecimal(raw);
         } catch (NumberFormatException e) {
-            throw new JsonParseException(p, "Invalid amount format: " + p.getText());
+            throw new JsonParseException(parser, "Invalid amount format: " + parser.getText());
         }
     }
 }
