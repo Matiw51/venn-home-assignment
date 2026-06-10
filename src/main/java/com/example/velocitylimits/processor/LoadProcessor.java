@@ -1,10 +1,8 @@
 package com.example.velocitylimits.processor;
 
 import com.example.velocitylimits.dto.LoadRequest;
-import com.example.velocitylimits.dto.LoadResponse;
 import com.example.velocitylimits.service.VelocityService;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,8 +18,8 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Optional;
-import java.util.Set;
+
+import static java.util.stream.Collectors.joining;
 
 /**
  * Reads fund load attempts from an input file, applies velocity limit checks via
@@ -65,22 +63,7 @@ public class LoadProcessor implements CommandLineRunner {
                 lineNumber++;
                 line = line.trim();
                 if (line.isEmpty()) continue;
-                try {
-                    LoadRequest request = objectMapper.readValue(line, LoadRequest.class);
-                    Set<ConstraintViolation<LoadRequest>> violations = validator.validate(request);
-                    if (!violations.isEmpty()) {
-                        log.warn("Invalid request on line {}: {}", lineNumber, violations);
-                        continue;
-                    }
-                    Optional<LoadResponse> response = velocityService.process(request);
-                    if (response.isPresent()) {
-                        writer.write(objectMapper.writeValueAsString(response.get()));
-                        writer.newLine();
-                        count++;
-                    }
-                } catch (Exception e) {
-                    log.error("Error processing line {}: {}", lineNumber, line, e);
-                }
+                if (processLine(line, lineNumber, writer)) count++;
             }
         } catch (FileNotFoundException e) {
             log.warn("Input file not found: {}. Nothing to process.", inputPath);
@@ -91,6 +74,36 @@ public class LoadProcessor implements CommandLineRunner {
         }
 
         log.info("Done. {} results written to {}", count, outputPath);
+    }
+
+    /**
+     * Deserializes, validates, and processes a single input line.
+     *
+     * @return true if a response was written to the output, false otherwise
+     */
+    private boolean processLine(String line, int lineNumber, BufferedWriter writer) {
+        try {
+            var request = objectMapper.readValue(line, LoadRequest.class);
+
+            var violations = validator.validate(request);
+            if (!violations.isEmpty()) {
+                var messages = violations.stream()
+                        .map(v -> v.getPropertyPath() + " " + v.getMessage())
+                        .collect(joining(", "));
+                log.warn("Invalid request on line {}: {}", lineNumber, messages);
+                return false;
+            }
+
+            var response = velocityService.process(request);
+            if (response.isPresent()) {
+                writer.write(objectMapper.writeValueAsString(response.get()));
+                writer.newLine();
+                return true;
+            }
+        } catch (Exception e) {
+            log.error("Error processing line {}: {}", lineNumber, line, e);
+        }
+        return false;
     }
 
     private BufferedReader openReader(String path) throws IOException {
