@@ -1,4 +1,4 @@
-package com.example.velocitylimits;
+package com.example.velocitylimits.integration;
 
 import com.example.velocitylimits.processor.LoadProcessor;
 import com.example.velocitylimits.repository.LoadAttemptRepository;
@@ -20,13 +20,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class LoadProcessorIntegrationTest {
+class LoadProcessorIT {
 
-    // Suppress the CommandLineRunner auto-run on context startup
     @MockBean
     private LoadProcessor suppressedProcessor;
 
-    // Inject real dependencies to build a processor manually per test
     @Autowired
     private VelocityService velocityService;
 
@@ -70,10 +68,9 @@ class LoadProcessorIntegrationTest {
         // id=1: $1000 → accepted  (day: $1000, count: 1)
         // id=2: $2000 → accepted  (day: $3000, count: 2)
         // id=3: $2500 → declined  (day would be $5500 > $5000)
-        // id=4: $500  → accepted  (day: $3500, count: 3 — still within daily count)
+        // id=4: $500  → accepted  (day: $3500, count: 3)
         // id=5: $100  → declined  (count would be 4 > 3)
         // id=1 dup    → no output
-
         assertThat(lines).hasSize(5);
         assertResponse(lines.get(0), "1", "1", true);
         assertResponse(lines.get(1), "2", "1", true);
@@ -95,7 +92,6 @@ class LoadProcessorIntegrationTest {
 
     @Test
     void shouldHandleMissingInputFileGracefully() {
-        // Should not throw — LoadProcessor logs a warning and returns
         processor().run("nonexistent_file.txt", tempDir.resolve("output.txt").toString());
     }
 

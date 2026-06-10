@@ -1,4 +1,4 @@
-package com.example.velocitylimits;
+package com.example.velocitylimits.integration;
 
 import com.example.velocitylimits.processor.LoadProcessor;
 import com.example.velocitylimits.repository.LoadAttemptRepository;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class VennSampleDataTest {
+class VennSampleDataIT {
 
     @MockBean
     private LoadProcessor suppressedProcessor;
@@ -49,7 +49,6 @@ class VennSampleDataTest {
     void shouldMatchExpectedOutputForVennSampleData() throws Exception {
         Path outputFile = tempDir.resolve("output.txt");
 
-        // input is loaded from classpath (src/test/resources/venn_input.txt)
         new LoadProcessor(velocityService, objectMapper)
                 .run("venn_input.txt", outputFile.toString());
 
