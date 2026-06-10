@@ -48,8 +48,15 @@ public class VelocityService {
             return null;
         }
 
-        Instant loadTime = Instant.parse(request.getTime());
         BigDecimal amount = parseAmount(request.getLoadAmount());
+
+        // Zero-amount loads are a no-op — no response, no DB record
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            log.debug("Zero/negative amount ignored: customerId={}, loadId={}", customerId, loadId);
+            return null;
+        }
+
+        Instant loadTime = Instant.parse(request.getTime());
         boolean accepted = checkVelocityLimits(customerId, amount, loadTime);
 
         repository.save(new LoadAttempt(loadId, customerId, amount, loadTime, accepted));

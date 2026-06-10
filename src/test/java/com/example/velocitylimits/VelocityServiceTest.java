@@ -159,4 +159,111 @@ class VelocityServiceTest {
 
         assertThat(response.isAccepted()).isTrue();
     }
+
+    @Test
+    void shouldAcceptExactWeeklyLimit() {
+        velocityService.process(request("1", "cust1", "$5000.00", "2018-01-01T00:00:00Z")); // Mon
+        velocityService.process(request("2", "cust1", "$5000.00", "2018-01-02T00:00:00Z")); // Tue
+        velocityService.process(request("3", "cust1", "$5000.00", "2018-01-03T00:00:00Z")); // Wed
+
+        // Thu — exactly $20,000 total, should be accepted
+        LoadResponse response = velocityService.process(
+                request("4", "cust1", "$5000.00", "2018-01-04T00:00:00Z"));
+
+        assertThat(response.isAccepted()).isTrue();
+    }
+
+    @Test
+    void shouldResetDailyLimitsAtExactMidnightUTC() {
+        // 3 loads on Jan 1 up to 23:59:59
+        velocityService.process(request("1", "cust1", "$100.00", "2018-01-01T23:59:57Z"));
+        velocityService.process(request("2", "cust1", "$100.00", "2018-01-01T23:59:58Z"));
+        velocityService.process(request("3", "cust1", "$100.00", "2018-01-01T23:59:59Z"));
+
+        // Exactly midnight — new day, count resets
+        LoadResponse response = velocityService.process(
+                request("4", "cust1", "$100.00", "2018-01-02T00:00:00Z"));
+
+        assertThat(response.isAccepted()).isTrue();
+    }
+
+    @Test
+    void shouldDeclineWhenWeeklyLimitExceededWithoutHittingDailyLimit() {
+        // $4999/day Mon-Thu = $19,996 — each day under $5k daily limit
+        velocityService.process(request("1", "cust1", "$4999.00", "2018-01-01T00:00:00Z")); // Mon
+        velocityService.process(request("2", "cust1", "$4999.00", "2018-01-02T00:00:00Z")); // Tue
+        velocityService.process(request("3", "cust1", "$4999.00", "2018-01-03T00:00:00Z")); // Wed
+        velocityService.process(request("4", "cust1", "$4999.00", "2018-01-04T00:00:00Z")); // Thu — $19,996
+
+        // Fri — only $4 left in week, $5 should be declined
+        LoadResponse response = velocityService.process(
+                request("5", "cust1", "$5.00", "2018-01-05T00:00:00Z"));
+
+        assertThat(response.isAccepted()).isFalse();
+    }
+
+    @Test
+    void shouldNotCountDeclinedLoadsAgainstWeeklyAmount() {
+        velocityService.process(request("1", "cust1", "$5000.00", "2018-01-01T00:00:00Z")); // Mon
+        velocityService.process(request("2", "cust1", "$5000.00", "2018-01-02T00:00:00Z")); // Tue
+        velocityService.process(request("3", "cust1", "$5000.00", "2018-01-03T00:00:00Z")); // Wed
+
+        // Thu — $6000 would exceed daily limit, so declined
+        velocityService.process(request("4", "cust1", "$6000.00", "2018-01-04T00:00:00Z"));
+
+        // Thu — $5000 should be accepted; weekly total is still $15k, not $21k
+        LoadResponse response = velocityService.process(
+                request("5", "cust1", "$5000.00", "2018-01-04T01:00:00Z"));
+
+        assertThat(response.isAccepted()).isTrue();
+    }
+
+    @Test
+    void shouldTreatSameLoadIdAsDuplicateOnlyForSameCustomer() {
+        velocityService.process(request("42", "cust1", "$100.00", "2018-01-01T00:00:00Z"));
+
+        // Same load ID, different customer — should be processed, not ignored
+        LoadResponse response = velocityService.process(
+                request("42", "cust2", "$100.00", "2018-01-01T00:00:00Z"));
+
+        assertThat(response).isNotNull();
+        assertThat(response.isAccepted()).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreZeroAmountLoad() {
+        LoadResponse response = velocityService.process(
+                request("1", "cust1", "$0.00", "2018-01-01T00:00:00Z"));
+
+        // No response and doesn't count against daily load count
+        assertThat(response).isNull();
+
+        velocityService.process(request("2", "cust1", "$100.00", "2018-01-01T01:00:00Z"));
+        velocityService.process(request("3", "cust1", "$100.00", "2018-01-01T02:00:00Z"));
+        velocityService.process(request("4", "cust1", "$100.00", "2018-01-01T03:00:00Z"));
+
+        // 3 real loads accepted, so 4th should be declined — zero load didn't consume a slot
+        LoadResponse fourth = velocityService.process(
+                request("5", "cust1", "$100.00", "2018-01-01T04:00:00Z"));
+        assertThat(fourth.isAccepted()).isFalse();
+    }
+
+    @Test
+    void shouldResetWeeklyLimitsAtMondayMidnightUTC() {
+        // Load $5000/day Mon-Thu = $20,000 (weekly limit hit)
+        velocityService.process(request("1", "cust1", "$5000.00", "2018-01-01T00:00:00Z")); // Mon
+        velocityService.process(request("2", "cust1", "$5000.00", "2018-01-02T00:00:00Z")); // Tue
+        velocityService.process(request("3", "cust1", "$5000.00", "2018-01-03T00:00:00Z")); // Wed
+        velocityService.process(request("4", "cust1", "$5000.00", "2018-01-04T00:00:00Z")); // Thu
+
+        // Sunday 23:59:59 — still same week, should be declined
+        LoadResponse stillThisWeek = velocityService.process(
+                request("5", "cust1", "$0.01", "2018-01-07T23:59:59Z"));
+        assertThat(stillThisWeek.isAccepted()).isFalse();
+
+        // Monday 00:00:00 — new week, should be accepted
+        LoadResponse newWeek = velocityService.process(
+                request("6", "cust1", "$5000.00", "2018-01-08T00:00:00Z"));
+        assertThat(newWeek.isAccepted()).isTrue();
+    }
 }
