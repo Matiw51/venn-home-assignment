@@ -14,6 +14,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Reads fund load attempts from an input file, applies velocity limit checks via
+ * {@link com.example.velocitylimits.service.VelocityService}, and writes the results to an output file.
+ *
+ * <p>Input is expected to be a newline-delimited file of JSON objects. Each line is processed
+ * independently. Malformed lines are logged and skipped. Duplicate load IDs per customer
+ * produce no output line.
+ *
+ * <p>Implements {@link CommandLineRunner} so the application processes {@code input.txt →
+ * output.txt} on startup when run as a standalone Spring Boot application.
+ */
 @Component
 public class LoadProcessor implements CommandLineRunner {
 

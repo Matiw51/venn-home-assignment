@@ -2,6 +2,11 @@ package com.example.velocitylimits.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * Incoming fund load attempt deserialized from a single JSON input line.
+ * The {@code load_amount} field is a dollar-prefixed string (e.g. {@code "$123.45"}).
+ * The {@code time} field is an ISO-8601 UTC instant (e.g. {@code "2018-01-01T00:00:00Z"}).
+ */
 public class LoadRequest {
 
     private String id;

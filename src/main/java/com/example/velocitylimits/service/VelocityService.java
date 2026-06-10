@@ -18,6 +18,19 @@ import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Optional;
 
+/**
+ * Enforces velocity limits on fund load attempts.
+ *
+ * <p>Each customer is subject to three limits:
+ * <ul>
+ *   <li>Maximum $5,000 loaded per day</li>
+ *   <li>Maximum $20,000 loaded per week (Mon–Sun UTC)</li>
+ *   <li>Maximum 3 accepted loads per day</li>
+ * </ul>
+ *
+ * <p>Declined loads do not count against any limit. Days reset at midnight UTC;
+ * weeks reset at Monday 00:00:00 UTC.
+ */
 @Service
 public class VelocityService {
 

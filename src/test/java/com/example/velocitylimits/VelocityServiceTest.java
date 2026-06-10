@@ -22,8 +22,6 @@ class VelocityServiceTest {
     @Autowired
     private VelocityService velocityService;
 
-    // --- Helpers ---
-
     private LoadRequest request(String id, String customerId, String amount, String time) {
         LoadRequest r = new LoadRequest();
         r.setId(id);
@@ -32,8 +30,6 @@ class VelocityServiceTest {
         r.setTime(time);
         return r;
     }
-
-    // --- Tests ---
 
     @Test
     void shouldAcceptValidLoad() {

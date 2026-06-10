@@ -4,6 +4,11 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 
+/**
+ * Persisted record of a fund load attempt, whether accepted or declined.
+ * Both outcomes are stored so that velocity limit queries can correctly
+ * aggregate only accepted loads.
+ */
 @Entity
 @Table(
     name = "load_attempts",
