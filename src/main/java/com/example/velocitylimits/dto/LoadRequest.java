@@ -1,10 +1,15 @@
 package com.example.velocitylimits.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import java.math.BigDecimal;
+import java.time.Instant;
 
 /**
  * Incoming fund load attempt deserialized from a single JSON input line.
- * The {@code load_amount} field is a dollar-prefixed string (e.g. {@code "$123.45"}).
+ * The {@code load_amount} field is a dollar-prefixed string (e.g. {@code "$123.45"})
+ * and is parsed into a {@link BigDecimal} at deserialization time.
  * The {@code time} field is an ISO-8601 UTC instant (e.g. {@code "2018-01-01T00:00:00Z"}).
  */
 public class LoadRequest {
@@ -15,9 +20,10 @@ public class LoadRequest {
     private String customerId;
 
     @JsonProperty("load_amount")
-    private String loadAmount;
+    @JsonDeserialize(using = DollarAmountDeserializer.class)
+    private BigDecimal loadAmount;
 
-    private String time;
+    private Instant time;
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
@@ -25,9 +31,9 @@ public class LoadRequest {
     public String getCustomerId() { return customerId; }
     public void setCustomerId(String customerId) { this.customerId = customerId; }
 
-    public String getLoadAmount() { return loadAmount; }
-    public void setLoadAmount(String loadAmount) { this.loadAmount = loadAmount; }
+    public BigDecimal getLoadAmount() { return loadAmount; }
+    public void setLoadAmount(BigDecimal loadAmount) { this.loadAmount = loadAmount; }
 
-    public String getTime() { return time; }
-    public void setTime(String time) { this.time = time; }
+    public Instant getTime() { return time; }
+    public void setTime(Instant time) { this.time = time; }
 }

@@ -9,14 +9,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Optional;
 
 /**
  * Reads fund load attempts from an input file, applies velocity limit checks via
- * {@link com.example.velocitylimits.service.VelocityService}, and writes the results to an output file.
+ * {@link VelocityService}, and writes the results to an output file.
  *
  * <p>Input is expected to be a newline-delimited file of JSON objects. Each line is processed
  * independently. Malformed lines are logged and skipped. Duplicate load IDs per customer
@@ -45,43 +53,35 @@ public class LoadProcessor implements CommandLineRunner {
 
         log.info("Starting processing: input={}, output={}", inputPath, outputPath);
 
-        List<String> results = new ArrayList<>();
-
-        try (BufferedReader reader = openReader(inputPath)) {
+        int count = 0;
+        try (BufferedReader reader = openReader(inputPath);
+             PrintWriter writer = openWriter(outputPath)) {
             String line;
             int lineNumber = 0;
             while ((line = reader.readLine()) != null) {
-                lineNumber++;
+                final int currentLine = ++lineNumber;
                 line = line.trim();
                 if (line.isEmpty()) continue;
-
                 try {
                     LoadRequest request = objectMapper.readValue(line, LoadRequest.class);
-                    LoadResponse response = velocityService.process(request);
-                    if (response != null) {
-                        results.add(objectMapper.writeValueAsString(response));
+                    Optional<LoadResponse> response = velocityService.process(request);
+                    if (response.isPresent()) {
+                        writer.println(objectMapper.writeValueAsString(response.get()));
+                        count++;
                     }
                 } catch (Exception e) {
-                    log.error("Error processing line {}: {}", lineNumber, line, e);
+                    log.error("Error processing line {}: {}", currentLine, line, e);
                 }
             }
         } catch (FileNotFoundException e) {
             log.warn("Input file not found: {}. Nothing to process.", inputPath);
             return;
         } catch (IOException e) {
-            log.error("Failed to read input file: {}", inputPath, e);
+            log.error("Failed to process files: {}", e.getMessage(), e);
             return;
         }
 
-        try (PrintWriter writer = new PrintWriter(new OutputStreamWriter(
-                new FileOutputStream(outputPath), StandardCharsets.UTF_8))) {
-            results.forEach(writer::println);
-        } catch (IOException e) {
-            log.error("Failed to write output file: {}", outputPath, e);
-            return;
-        }
-
-        log.info("Done. {} results written to {}", results.size(), outputPath);
+        log.info("Done. {} results written to {}", count, outputPath);
     }
 
     private BufferedReader openReader(String path) throws IOException {
@@ -94,5 +94,10 @@ public class LoadProcessor implements CommandLineRunner {
         InputStream is = getClass().getClassLoader().getResourceAsStream(path);
         if (is == null) throw new FileNotFoundException(path);
         return new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+    }
+
+    private PrintWriter openWriter(String path) throws IOException {
+        return new PrintWriter(new OutputStreamWriter(
+                new FileOutputStream(path), StandardCharsets.UTF_8));
     }
 }

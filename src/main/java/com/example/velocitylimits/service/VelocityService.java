@@ -36,9 +36,9 @@ public class VelocityService {
 
     private static final Logger log = LoggerFactory.getLogger(VelocityService.class);
 
-    static final BigDecimal MAX_DAILY_AMOUNT = new BigDecimal("5000.00");
-    static final BigDecimal MAX_WEEKLY_AMOUNT = new BigDecimal("20000.00");
-    static final int MAX_DAILY_LOADS = 3;
+    private static final BigDecimal MAX_DAILY_AMOUNT = new BigDecimal("5000.00");
+    private static final BigDecimal MAX_WEEKLY_AMOUNT = new BigDecimal("20000.00");
+    private static final int MAX_DAILY_LOADS = 3;
 
     private final LoadAttemptRepository repository;
 
@@ -47,29 +47,38 @@ public class VelocityService {
     }
 
     /**
-     * Processes a fund load attempt. Returns null if the load ID has already been seen
-     * for this customer (duplicate), otherwise returns whether the load was accepted.
+     * Processes a fund load attempt.
+     *
+     * <p><b>Concurrency note:</b> this method uses the default READ_COMMITTED isolation level.
+     * Two concurrent requests for the same customer could theoretically both pass the velocity
+     * check before either commits, resulting in a limit overshoot. The correct fix is
+     * pessimistic per-customer locking (SELECT FOR UPDATE on a customer row), which would
+     * require a dedicated Customer entity. Acceptable for this scope; should be addressed
+     * before production use at scale.
+     *
+     * @return the result of the attempt, or an empty Optional if the load was a duplicate
+     *         or had a zero/negative amount (no output should be produced for these cases)
      */
     @Transactional
-    public LoadResponse process(LoadRequest request) {
+    public Optional<LoadResponse> process(LoadRequest request) {
         String customerId = request.getCustomerId();
         String loadId = request.getId();
 
         // Ignore duplicate load IDs per customer (no response per spec)
         if (repository.existsByCustomerIdAndLoadId(customerId, loadId)) {
             log.debug("Duplicate ignored: customerId={}, loadId={}", customerId, loadId);
-            return null;
+            return Optional.empty();
         }
 
-        BigDecimal amount = parseAmount(request.getLoadAmount());
+        BigDecimal amount = request.getLoadAmount();
 
         // Zero-amount loads are a no-op — no response, no DB record
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             log.debug("Zero/negative amount ignored: customerId={}, loadId={}", customerId, loadId);
-            return null;
+            return Optional.empty();
         }
 
-        Instant loadTime = Instant.parse(request.getTime());
+        Instant loadTime = request.getTime();
         boolean accepted = checkVelocityLimits(customerId, amount, loadTime);
 
         repository.save(new LoadAttempt(loadId, customerId, amount, loadTime, accepted));
@@ -77,7 +86,7 @@ public class VelocityService {
         log.info("Processed: customerId={}, loadId={}, amount={}, accepted={}",
                 customerId, loadId, amount, accepted);
 
-        return new LoadResponse(loadId, customerId, accepted);
+        return Optional.of(new LoadResponse(loadId, customerId, accepted));
     }
 
     private boolean checkVelocityLimits(String customerId, BigDecimal amount, Instant loadTime) {
@@ -92,13 +101,13 @@ public class VelocityService {
             return false;
         }
 
-        BigDecimal dailyTotal = getAcceptedAmount(customerId, dayStart, dayEnd);
+        BigDecimal dailyTotal = repository.sumAcceptedAmountBetween(customerId, dayStart, dayEnd);
         if (dailyTotal.add(amount).compareTo(MAX_DAILY_AMOUNT) > 0) {
             log.debug("Declined (daily amount): customerId={}, current={}, requested={}", customerId, dailyTotal, amount);
             return false;
         }
 
-        BigDecimal weeklyTotal = getAcceptedAmount(customerId, weekStart, weekEnd);
+        BigDecimal weeklyTotal = repository.sumAcceptedAmountBetween(customerId, weekStart, weekEnd);
         if (weeklyTotal.add(amount).compareTo(MAX_WEEKLY_AMOUNT) > 0) {
             log.debug("Declined (weekly amount): customerId={}, current={}, requested={}", customerId, weeklyTotal, amount);
             return false;
@@ -107,23 +116,14 @@ public class VelocityService {
         return true;
     }
 
-    private BigDecimal getAcceptedAmount(String customerId, Instant start, Instant end) {
-        return Optional.ofNullable(repository.sumAcceptedAmountBetween(customerId, start, end))
-                .orElse(BigDecimal.ZERO);
-    }
-
-    Instant getDayStart(Instant time) {
+    private Instant getDayStart(Instant time) {
         return time.truncatedTo(ChronoUnit.DAYS);
     }
 
-    Instant getWeekStart(Instant time) {
+    private Instant getWeekStart(Instant time) {
         ZonedDateTime zdt = time.atZone(ZoneOffset.UTC);
         return zdt.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 .truncatedTo(ChronoUnit.DAYS)
                 .toInstant();
-    }
-
-    private BigDecimal parseAmount(String loadAmount) {
-        return new BigDecimal(loadAmount.replace("$", "").trim());
     }
 }
