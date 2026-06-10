@@ -1,7 +1,9 @@
 package com.example.velocitylimits.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
+@JsonPropertyOrder({"id", "customer_id", "accepted"})
 public class LoadResponse {
 
     private String id;
