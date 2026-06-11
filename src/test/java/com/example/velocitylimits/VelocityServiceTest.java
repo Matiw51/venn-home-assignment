@@ -27,12 +27,12 @@ class VelocityServiceTest {
     private VelocityService velocityService;
 
     private LoadRequest request(String id, String customerId, String amount, String time) {
-        LoadRequest r = new LoadRequest();
-        r.setId(id);
-        r.setCustomerId(customerId);
-        r.setLoadAmount(new BigDecimal(amount.replace("$", "").trim()));
-        r.setTime(Instant.parse(time));
-        return r;
+        LoadRequest loadRequest = new LoadRequest();
+        loadRequest.setId(id);
+        loadRequest.setCustomerId(customerId);
+        loadRequest.setLoadAmount(new BigDecimal(amount.replace("$", "").trim()));
+        loadRequest.setTime(Instant.parse(time));
+        return loadRequest;
     }
 
     @Test
@@ -88,6 +88,18 @@ class VelocityServiceTest {
 
         Optional<LoadResponse> response = velocityService.process(
                 request("4", "cust1", "$100.00", "2018-01-02T00:00:00Z"));
+
+        assertThat(response).isPresent();
+        assertThat(response.get().isAccepted()).isTrue();
+    }
+
+    @Test
+    void shouldResetDailyAmountNextDay() {
+        velocityService.process(request("1", "cust1", "$4000.00", "2018-01-01T00:00:00Z"));
+
+        // Next day — amount resets, so $4000 should be accepted again
+        Optional<LoadResponse> response = velocityService.process(
+                request("2", "cust1", "$4000.00", "2018-01-02T00:00:00Z"));
 
         assertThat(response).isPresent();
         assertThat(response.get().isAccepted()).isTrue();
