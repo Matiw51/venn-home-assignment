@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -24,9 +24,13 @@ import java.util.stream.Collectors;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-class VennSampleDataIT {
+class FullDatasetIT {
 
-    @MockBean
+    private static final String VENN_INPUT = "venn_input.txt";
+    private static final String VENN_EXPECTED_OUTPUT = "venn_expected_output.txt";
+    private static final String OUTPUT_FILE = "output.txt";
+
+    @MockitoBean
     private LoadProcessor suppressedProcessor;
 
     @Autowired
@@ -51,13 +55,12 @@ class VennSampleDataIT {
 
     @Test
     void shouldMatchExpectedOutputForVennSampleData() throws Exception {
-        Path outputFile = tempDir.resolve("output.txt");
+        Path outputFile = tempDir.resolve(OUTPUT_FILE);
 
-        new LoadProcessor(velocityService, objectMapper, validator)
-                .run("venn_input.txt", outputFile.toString());
+        runLoadProcessor(Path.of(VENN_INPUT), outputFile);
 
         List<String> actual = Files.readAllLines(outputFile, StandardCharsets.UTF_8);
-        List<String> expected = readClasspathLines("venn_expected_output.txt");
+        List<String> expected = readClasspathLines(VENN_EXPECTED_OUTPUT);
 
         assertThat(actual).hasSameSizeAs(expected);
         for (int i = 0; i < expected.size(); i++) {
@@ -65,6 +68,11 @@ class VennSampleDataIT {
                     .as("Line %d", i + 1)
                     .isEqualTo(expected.get(i));
         }
+    }
+
+    private void runLoadProcessor(Path inputFile, Path outputFile) {
+        new LoadProcessor(velocityService, objectMapper, validator)
+                .run(inputFile.toString(), outputFile.toString());
     }
 
     private List<String> readClasspathLines(String resource) throws Exception {

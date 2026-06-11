@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,7 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class LoadProcessorIT {
 
-    @MockBean
+    private static final String OUTPUT_FILE = "output.txt";
+
+    @MockitoBean
     private LoadProcessor suppressedProcessor;
 
     @Autowired
@@ -46,8 +48,9 @@ class LoadProcessorIT {
         repository.deleteAll();
     }
 
-    private LoadProcessor processor() {
-        return new LoadProcessor(velocityService, objectMapper, validator);
+    private void runLoadProcessor(Path inputFile, Path outputFile) {
+        new LoadProcessor(velocityService, objectMapper, validator)
+                .run(inputFile.toString(), outputFile.toString());
     }
 
     @Test
@@ -62,41 +65,35 @@ class LoadProcessorIT {
                 """;
 
         Path inputFile = tempDir.resolve("input.txt");
-        Path outputFile = tempDir.resolve("output.txt");
+        Path outputFile = tempDir.resolve(OUTPUT_FILE);
         Files.writeString(inputFile, input);
 
-        processor().run(inputFile.toString(), outputFile.toString());
+        runLoadProcessor(inputFile, outputFile);
 
         List<String> lines = Files.readAllLines(outputFile);
 
-        // id=1: $1000 → accepted  (day: $1000, count: 1)
-        // id=2: $2000 → accepted  (day: $3000, count: 2)
-        // id=3: $2500 → declined  (day would be $5500 > $5000)
-        // id=4: $500  → accepted  (day: $3500, count: 3)
-        // id=5: $100  → declined  (count would be 4 > 3)
-        // id=1 dup    → no output
-        assertThat(lines).hasSize(5);
-        assertResponse(lines.get(0), "1", "1", true);
-        assertResponse(lines.get(1), "2", "1", true);
-        assertResponse(lines.get(2), "3", "1", false);
-        assertResponse(lines.get(3), "4", "1", true);
-        assertResponse(lines.get(4), "5", "1", false);
+        assertThat(lines).hasSize(5); // id=1 duplicate produces no output
+        assertResponse(lines.get(0), "1", "1", true);  // $1000 → accepted  (day: $1000, count: 1)
+        assertResponse(lines.get(1), "2", "1", true);  // $2000 → accepted  (day: $3000, count: 2)
+        assertResponse(lines.get(2), "3", "1", false); // $2500 → declined  (would exceed $5000 daily)
+        assertResponse(lines.get(3), "4", "1", true);  // $500  → accepted  (day: $3500, count: 3)
+        assertResponse(lines.get(4), "5", "1", false); // $100  → declined  (would exceed 3 daily loads)
     }
 
     @Test
     void shouldHandleEmptyInputGracefully() throws Exception {
         Path inputFile = tempDir.resolve("empty.txt");
-        Path outputFile = tempDir.resolve("output.txt");
+        Path outputFile = tempDir.resolve(OUTPUT_FILE);
         Files.writeString(inputFile, "");
 
-        processor().run(inputFile.toString(), outputFile.toString());
+        runLoadProcessor(inputFile, outputFile);
 
         assertThat(Files.readAllLines(outputFile)).isEmpty();
     }
 
     @Test
     void shouldHandleMissingInputFileGracefully() {
-        processor().run("nonexistent_file.txt", tempDir.resolve("output.txt").toString());
+        runLoadProcessor(Path.of("nonexistent_file.txt"), tempDir.resolve(OUTPUT_FILE));
     }
 
     private void assertResponse(String json, String expectedId, String expectedCustomerId,
